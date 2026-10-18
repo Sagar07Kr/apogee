@@ -17,6 +17,7 @@ import {
   readTextHead,
   truncateExtractedText,
   truncatePastedText,
+  truncateSelectedText,
   uploadExtension,
 } from "../../lib/extract/fileLimits.js";
 
@@ -161,6 +162,43 @@ test("truncatePastedText truncates with a note past the ceiling (#211)", () => {
   assert.equal(truncated, true);
   assert.ok(text.length < MAX_PASTED_CHARS + 1000);
   assert.match(text, /\[\.\.\.pasted content truncated/);
+});
+
+test("truncateSelectedText passes text up to the ceiling through untouched (#471)", () => {
+  const { text, truncated } = truncateSelectedText("  hello  ");
+  assert.equal(text, "hello");
+  assert.equal(truncated, false);
+  const atCap = truncateSelectedText("x".repeat(MAX_PASTED_CHARS));
+  assert.equal(atCap.truncated, false);
+  assert.equal(atCap.text.length, MAX_PASTED_CHARS);
+});
+
+test("truncateSelectedText truncates with a note past the ceiling (#471)", () => {
+  const { text, truncated } = truncateSelectedText(
+    "y".repeat(MAX_PASTED_CHARS + 1),
+  );
+  assert.equal(truncated, true);
+  assert.ok(text.length <= MAX_PASTED_CHARS);
+  assert.ok(text.startsWith("y".repeat(100)));
+  assert.match(
+    text,
+    new RegExp(
+      `\\[\\.\\.\\.selected content truncated to the first ${MAX_PASTED_CHARS} characters\\.\\.\\.\\]$`,
+    ),
+  );
+});
+
+test("truncateSelectedText never splits an emoji at the cut point (#471)", () => {
+  // The two offsets put the cut on either half of a surrogate pair, so one
+  // of them always lands mid-emoji.
+  for (const prefix of ["", "x"]) {
+    const { text, truncated } = truncateSelectedText(
+      prefix + "😀".repeat(MAX_PASTED_CHARS),
+    );
+    assert.equal(truncated, true);
+    const head = text.split("\n\n")[0].slice(prefix.length);
+    for (const char of head) assert.equal(char, "😀");
+  }
 });
 
 test("finished-summary backstop is a generous fixed ceiling", () => {

@@ -107,6 +107,14 @@ export function truncatePastedText(text) {
   return truncateWithNote((text || "").trim(), MAX_PASTED_CHARS, "pasted");
 }
 
+// Selected-text ceiling (#471). The capture script and the context menu hand
+// runBackgroundSummarize the whole selection, which is copied into view
+// state, the finalize payload, and the prompt, so cap it at the pasted
+// ceiling with the same note.
+export function truncateSelectedText(text) {
+  return truncateWithNote((text || "").trim(), MAX_PASTED_CHARS, "selected");
+}
+
 // Expanded-text working ceiling (#267). PDF/DOCX extraction inflates a 50 MB
 // upload into megabytes of text; the popup cannot hold the full expansion
 // plus prompt chunks, and summarizeCustomContent truncates to MAX_PASTED_CHARS

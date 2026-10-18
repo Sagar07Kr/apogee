@@ -35,6 +35,7 @@ import {
   MAX_BILIBILI_SUBTITLE_CHARS,
   MAX_BILIBILI_SUBTITLE_SEGMENTS,
   MAX_UPLOAD_FILE_BYTES,
+  truncateSelectedText,
 } from "../lib/extract/fileLimits.js";
 import {
   recordPageAccessEvent,
@@ -636,7 +637,9 @@ export async function runBackgroundSummarize(
   const providerType = getProviderType(settings);
   const model = getModelForSettings(settings);
 
-  const selection = normalizeSelectedText(selectionText);
+  const selection = truncateSelectedText(
+    normalizeSelectedText(selectionText),
+  ).text;
   if (selection && !isSummarizableSelection(selection)) {
     throw new UserFacingError(
       `Select at least ${MIN_SELECTION_LENGTH} characters to summarize.`,
