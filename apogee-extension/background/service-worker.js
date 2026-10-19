@@ -35,7 +35,7 @@ import {
   MAX_BILIBILI_SUBTITLE_CHARS,
   MAX_BILIBILI_SUBTITLE_SEGMENTS,
   MAX_UPLOAD_FILE_BYTES,
-  truncateSelectedText,
+  truncatePastedText,
 } from "../lib/extract/fileLimits.js";
 import {
   recordPageAccessEvent,
@@ -637,8 +637,9 @@ export async function runBackgroundSummarize(
   const providerType = getProviderType(settings);
   const model = getModelForSettings(settings);
 
-  const selection = truncateSelectedText(
+  const selection = truncatePastedText(
     normalizeSelectedText(selectionText),
+    "selected",
   ).text;
   if (selection && !isSummarizableSelection(selection)) {
     throw new UserFacingError(

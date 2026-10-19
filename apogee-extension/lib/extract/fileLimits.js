@@ -96,23 +96,20 @@ export const MAX_FINALIZE_TEXT_CHARS = 1024 * 1024;
 export const MAX_BILIBILI_SUBTITLE_SEGMENTS = 5000;
 export const MAX_BILIBILI_SUBTITLE_CHARS = 500 * 1024;
 
-// Pasted-text and plain-text file ceiling (#211). file.size bounds the upload
-// (~50 MB string), but two post-read text paths were unbounded: file.text()
-// for txt/md/json/html and the pasted-text dialog. A multi-MB string here
-// becomes thousands of prompt chunks (slow prompt / local OOM), so truncate
-// early with a note, mirroring truncateForPrompt's convention.
+// Pasted-text and plain-text file ceiling (#211), also the selected-text
+// ceiling (#471). file.size bounds the upload (~50 MB string), but two
+// post-read text paths were unbounded: file.text() for txt/md/json/html and
+// the pasted-text dialog. A multi-MB string here becomes thousands of prompt
+// chunks (slow prompt / local OOM), so truncate early with a note, mirroring
+// truncateForPrompt's convention.
 export const MAX_PASTED_CHARS = 100 * 1024;
 
-export function truncatePastedText(text) {
-  return truncateWithNote((text || "").trim(), MAX_PASTED_CHARS, "pasted");
-}
-
-// Selected-text ceiling (#471). The capture script and the context menu hand
-// runBackgroundSummarize the whole selection, which is copied into view
-// state, the finalize payload, and the prompt, so cap it at the pasted
-// ceiling with the same note.
-export function truncateSelectedText(text) {
-  return truncateWithNote((text || "").trim(), MAX_PASTED_CHARS, "selected");
+// The label names the input kind in the user-visible note: selected text
+// reaches the service worker whole from the capture script and the context
+// menu, then fans out to view state, the finalize payload, and the prompt, so
+// it shares this ceiling (#471).
+export function truncatePastedText(text, label = "pasted") {
+  return truncateWithNote((text || "").trim(), MAX_PASTED_CHARS, label);
 }
 
 // Expanded-text working ceiling (#267). PDF/DOCX extraction inflates a 50 MB

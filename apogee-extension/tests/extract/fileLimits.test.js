@@ -17,7 +17,6 @@ import {
   readTextHead,
   truncateExtractedText,
   truncatePastedText,
-  truncateSelectedText,
   uploadExtension,
 } from "../../lib/extract/fileLimits.js";
 
@@ -164,18 +163,19 @@ test("truncatePastedText truncates with a note past the ceiling (#211)", () => {
   assert.match(text, /\[\.\.\.pasted content truncated/);
 });
 
-test("truncateSelectedText passes text up to the ceiling through untouched (#471)", () => {
-  const { text, truncated } = truncateSelectedText("  hello  ");
+test("selected-text cap passes text up to the ceiling through untouched (#471)", () => {
+  const { text, truncated } = truncatePastedText("  hello  ", "selected");
   assert.equal(text, "hello");
   assert.equal(truncated, false);
-  const atCap = truncateSelectedText("x".repeat(MAX_PASTED_CHARS));
+  const atCap = truncatePastedText("x".repeat(MAX_PASTED_CHARS), "selected");
   assert.equal(atCap.truncated, false);
   assert.equal(atCap.text.length, MAX_PASTED_CHARS);
 });
 
-test("truncateSelectedText truncates with a note past the ceiling (#471)", () => {
-  const { text, truncated } = truncateSelectedText(
+test("selected-text cap truncates with a note past the ceiling (#471)", () => {
+  const { text, truncated } = truncatePastedText(
     "y".repeat(MAX_PASTED_CHARS + 1),
+    "selected",
   );
   assert.equal(truncated, true);
   assert.ok(text.length <= MAX_PASTED_CHARS);
@@ -188,12 +188,13 @@ test("truncateSelectedText truncates with a note past the ceiling (#471)", () =>
   );
 });
 
-test("truncateSelectedText never splits an emoji at the cut point (#471)", () => {
+test("selected-text cap never splits an emoji at the cut point (#471)", () => {
   // The two offsets put the cut on either half of a surrogate pair, so one
   // of them always lands mid-emoji.
   for (const prefix of ["", "x"]) {
-    const { text, truncated } = truncateSelectedText(
+    const { text, truncated } = truncatePastedText(
       prefix + "😀".repeat(MAX_PASTED_CHARS),
+      "selected",
     );
     assert.equal(truncated, true);
     const head = text.split("\n\n")[0].slice(prefix.length);
