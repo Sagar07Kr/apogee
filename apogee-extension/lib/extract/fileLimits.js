@@ -104,20 +104,12 @@ export const MAX_BILIBILI_SUBTITLE_CHARS = 500 * 1024;
 // truncateForPrompt's convention.
 export const MAX_PASTED_CHARS = 100 * 1024;
 
-// The label names the input kind in the user-visible note: selected text
-// reaches the service worker whole from the capture script and the context
-// menu, then fans out to view state, the finalize payload, and the prompt, so
-// it shares this ceiling (#471).
-export function truncatePastedText(text, label = "pasted") {
-  return truncateWithNote((text || "").trim(), MAX_PASTED_CHARS, label);
-}
-
 // Expanded-text working ceiling (#267). PDF/DOCX extraction inflates a 50 MB
 // upload into megabytes of text; the popup cannot hold the full expansion
 // plus prompt chunks, and summarizeCustomContent truncates to MAX_PASTED_CHARS
 // downstream anyway. Capping at the same size at the extraction site bounds
 // peak memory and keeps one user-visible truncation note instead of two.
-// The truncated output is sized to fit back through truncatePastedText
+// The truncated output is sized to fit back through truncateWithNote
 // untouched (room is reserved for the note), so the choke point stays quiet.
 export const MAX_EXTRACTED_TEXT_CHARS = MAX_PASTED_CHARS;
 
@@ -129,19 +121,16 @@ function sliceOnCharBoundary(text, maxLength) {
   return head;
 }
 
-// Shared core for the user-visible truncation helpers: same
-// { text, truncated } shape and the same labeled-note convention, only the
-// ceiling and label differ. The head reserves room for the note so output
-// never exceeds maxChars, and the cut respects surrogate pairs.
-function truncateWithNote(clean, maxChars, label) {
+// One helper for every user-visible text cap: trim, cap, and append a labeled
+// note. The label names the input kind ("pasted", "selected", "PDF file").
+// The head reserves room for the note so output never exceeds maxChars, and
+// the cut respects surrogate pairs.
+export function truncateWithNote(text, maxChars, label) {
+  const clean = (text || "").trim();
   if (clean.length <= maxChars) return { text: clean, truncated: false };
   const note = `[...${label} content truncated to the first ${maxChars} characters...]`;
   const head = sliceOnCharBoundary(clean, maxChars - note.length - 2).trimEnd();
   return { text: `${head}\n\n${note}`, truncated: true };
-}
-
-export function truncateExtractedText(text, label = "file") {
-  return truncateWithNote((text || "").trim(), MAX_EXTRACTED_TEXT_CHARS, label);
 }
 
 // Absolute map-stage ceiling (#269). getMaxChunks bounds the reduce budget
@@ -210,7 +199,7 @@ export function releaseReaderLock(reader) {
 // caller can truncate it; streaming slices through a TextDecoder and
 // cancelling past the cap keeps peak memory proportional to the cap, not the
 // file. Returns { text, truncated } with the same note convention as
-// truncatePastedText. UTF-8 note: every character costs >= 1 byte, so a file
+// truncateWithNote. UTF-8 note: every character costs >= 1 byte, so a file
 // whose byte size fits the cap cannot exceed it and is read whole.
 export async function readTextHead(file, maxChars = MAX_PASTED_CHARS) {
   if (
@@ -218,7 +207,7 @@ export async function readTextHead(file, maxChars = MAX_PASTED_CHARS) {
     file.size <= maxChars &&
     typeof file.text === "function"
   ) {
-    return truncatePastedText(await file.text());
+    return truncateWithNote(await file.text(), maxChars, "file");
   }
   const reader = file.stream().getReader();
   const decoder = new TextDecoder();
@@ -239,6 +228,5 @@ export async function readTextHead(file, maxChars = MAX_PASTED_CHARS) {
   } finally {
     releaseReaderLock(reader);
   }
-  if (!truncated) return truncatePastedText(text);
-  return truncateWithNote(text.trim(), maxChars, "file");
+  return truncateWithNote(text, maxChars, "file");
 }
